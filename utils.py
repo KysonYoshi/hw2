@@ -112,7 +112,7 @@ def beam_search_decode(model, src, src_mask, max_len, start_symbol, beam_size, e
         out = model.decode(memory, src_mask, ys, subsequent_mask(ys.size(1)).type_as(src.data))
 
         # Step 3: Calculate probabilities for the next token
-        prob = F.log_softmax(model.generator(out[:, -1]), dim=-1)  # Get the log probabilities for the next token
+        prob = torch.nn.functional.log_softmax(model.generator(out[:, -1]), dim=-1)  # Get the log probabilities for the next token
 
         # If the end token has been generated, set its probability to -inf for any subsequent positions
         prob[:, end_idx] = prob[:, end_idx].masked_fill(ys[:, -1] == end_idx, 0)

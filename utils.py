@@ -111,7 +111,10 @@ def beam_search_decode(model, src, src_mask, max_len, start_symbol, beam_size, e
 
     for i in range(max_len - 1):
         # Step 3: Decode using the model
-        out = model.decode(memory, src_mask, sequences, subsequent_mask(sequences.size(1)).type_as(src.data))
+        tgt_mask = subsequent_mask(sequences.size(1)).type_as(src.data)
+        tgt_mask = tgt_mask.expand(beam_size, -1, -1)
+
+        out = model.decode(memory, src_mask, sequences, tgt_mask)
 
         # Step 4: Calculate probabilities for the next token
         prob = torch.nn.functional.log_softmax(model.generator(out[:, -1]), dim=-1)  # Log-probabilities of next tokens
@@ -144,7 +147,7 @@ def beam_search_decode(model, src, src_mask, max_len, start_symbol, beam_size, e
     best_sequence_index = torch.argmax(sequence_scores)
     best_sequence = sequences[best_sequence_index]
 
-    return [best_sequence.tolist()]
+    return best_sequence.tolist()
         
 
 

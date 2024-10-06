@@ -149,7 +149,7 @@ def beam_search_decode(model, src, src_mask, max_len, start_symbol, beam_size, e
     best_sequence_index = torch.argmax(sequence_scores)
     best_sequence = sequences[best_sequence_index]
 
-    return best_sequence.tolist()
+    return [best_sequence.tolist()]
 
         
 

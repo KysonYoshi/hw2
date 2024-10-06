@@ -146,7 +146,7 @@ def beam_search_decode(model, src, src_mask, max_len, start_symbol, beam_size, e
             break
 
     # Return the top-scored sequence
-    return ys[0]
+    return ys[0].view(-1)
         
 
 

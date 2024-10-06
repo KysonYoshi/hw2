@@ -98,8 +98,8 @@ def beam_search_decode(model, src, src_mask, max_len, start_symbol, beam_size, e
     memory = model.encode(src, src_mask)
 
     # Step 2: Initialize decoder input and scores
-    ys = torch.ones(1, 1).fill_(start_symbol).type_as(src.data)  # Start symbol as the initial input
-    scores = torch.zeros(1).to(src.device)  # Scores for the initial input
+    ys = torch.ones(beam_size, 1).fill_(start_symbol).type_as(src.data)  # Adjusted for beam size
+    scores = torch.zeros(beam_size).to(src.device)  # Scores for the initial input
 
     # Expand memory and source mask for beam size
     memory = memory.expand(beam_size, -1, -1)
@@ -132,7 +132,7 @@ def beam_search_decode(model, src, src_mask, max_len, start_symbol, beam_size, e
         next_decoder_input = []
         updated_scores = []
         for beam_idx, token_idx, score in zip(beam_indices, token_indices, top_k_scores):
-            next_seq = torch.cat([sequences[beam_idx], token_idx.unsqueeze(0)], dim=0)
+            next_seq = torch.cat([sequences[beam_idx], token_idx.unsqueeze(0)], dim=-1)
             next_decoder_input.append(next_seq.unsqueeze(0))
             updated_scores.append(score.unsqueeze(0))
 
@@ -140,14 +140,17 @@ def beam_search_decode(model, src, src_mask, max_len, start_symbol, beam_size, e
         sequence_scores = torch.cat(updated_scores, dim=0)  # Update scores
 
         # Step 8: Check if all beams have ended
-        if (sequences[:, -1] == end_idx).all():
+        finished_beams = (sequences[:, -1] == end_idx)
+
+        if finished_beams.all():  # When all beams are finished, break
             break
 
     # Return the top-scored sequence
     best_sequence_index = torch.argmax(sequence_scores)
     best_sequence = sequences[best_sequence_index]
 
-    return [best_sequence.tolist()]
+    return best_sequence.tolist()
+
         
 
 

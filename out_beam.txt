@@ -1,0 +1,15 @@
+<s> A group of men are loading cotton onto a truck </s>
+<s> A group of men loading fish on a truck . </s>
+
+<s> A man sleeping in a green room on a couch . </s>
+<s> A man is sleeping on a couch in a green room . </s>
+
+<s> A boy wearing headphones sits on a woman 's shoulders . </s>
+<s> A boy wearing headphones sits on a woman 's shoulders . </s>
+
+<s> Two men setting up a blue ice fishing hut on an iced over lake </s>
+<s> Two men building a blue metal structure on a lake . </s>
+
+<s> A balding man wearing a red life jacket is sitting in a small boat . </s>
+<s> A balding man wearing a red life vest sitting in a small boat . </s>
+

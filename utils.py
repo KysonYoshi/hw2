@@ -128,13 +128,13 @@ def beam_search_decode(model, src, src_mask, max_len, start_symbol, beam_size, e
                 finished_sequences.append(ys[beam_index].tolist())
                 finished_scores.append(top_k_scores[j].item())
             else:
-                next_decoder_input.append(torch.cat([ys[beam_index], torch.tensor([[token_index]]).type_as(src.data)], dim=1))
+                next_decoder_input.append(torch.cat([ys[beam_index], token_index.view(1, 1).type_as(src.data)], dim=0))
 
         if len(next_decoder_input) == 0:  # If all beams have finished, break
             break
 
         # Update ys and scores for the next iteration
-        ys = torch.stack(next_decoder_input).squeeze(1)  # (beam_size, seq_len)
+        ys = torch.stack(next_decoder_input)  # (beam_size, seq_len)
         scores = top_k_scores
 
     # Add any remaining sequences to finished sequences

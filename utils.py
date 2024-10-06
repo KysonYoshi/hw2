@@ -91,63 +91,77 @@ def greedy_decode(model, src, src_mask, max_len, start_symbol):
 
 def beam_search_decode(model, src, src_mask, max_len, start_symbol, beam_size, end_idx):
     """
-    Implement beam search decoding with 'beam_size' width.
+    Beam search decoding with 'beam_size' width.
+
+    Args:
+        model: The trained transformer model.
+        src: Source input tensor (batch size, seq length).
+        src_mask: Mask for source input.
+        max_len: Maximum length of the output sequence.
+        start_symbol: Index of the start token.
+        beam_size: Number of beams to keep.
+        end_idx: Index of the end token.
+
+    Returns:
+        Decoded sequence of tokens.
     """
 
-    # Step 1: Encode source input using the model encoder
+    # Step 1: Encode the source input using the model
     memory = model.encode(src, src_mask)
 
-    # Step 2: Initialize decoder input and scores
-    ys = torch.ones(1, 1).fill_(start_symbol).type_as(src.data)  # Start symbol as the initial input
-    scores = torch.zeros(1).to(src.device)  # Scores for the initial input
+    # Step 2: Initialize the beam with the start token and scores
+    ys = torch.ones(1, 1).fill_(start_symbol).type_as(src.data)  # Initial input is start token
+    scores = torch.zeros(1, 1).cuda()  # Scores initialized with 0
 
-    # Expand memory and source mask for beam size
-    memory = memory.expand(beam_size, -1, -1)
-    src_mask = src_mask.expand(beam_size, -1, -1)
-
-    # List to store sequences and scores
-    sequences = ys
-    sequence_scores = scores
+    finished_beams = []  # Store the completed sequences
+    beams = [(ys, scores)]  # Start with the initial beam containing the start token
 
     for i in range(max_len - 1):
-        # Step 3: Decode using the model
-        tgt_mask = subsequent_mask(sequences.size(1)).type_as(src.data)
-        tgt_mask = tgt_mask.expand(beam_size, -1, -1)
+        all_candidates = []  # Store all beam candidates
 
-        out = model.decode(memory, src_mask, sequences, tgt_mask)
+        # For each beam, expand it with the next token
+        for ys, scores in beams:
+            # Step 3: Decode using the model
+            out = model.decode(ys, memory, src_mask, subsequent_mask(ys.size(1)).cuda())
+            out = out[:, -1]  # Get the output of the last step
+            prob = torch.nn.functional.log_softmax(out, dim=-1)  # Apply log-softmax to get probabilities
 
-        # Step 4: Calculate probabilities for the next token
-        prob = torch.nn.functional.log_softmax(model.generator(out[:, -1]), dim=-1)  # Log-probabilities of next tokens
+            # Step 4: Update the scores by adding the log probabilities to the current beam scores
+            next_scores = scores + prob.squeeze(0)
 
-        # Step 5: Update scores and get top-k scores and indices
-        scores_sum = sequence_scores.unsqueeze(1) + prob  # Shape: (beam_size, vocab_size)
-        scores_flat = scores_sum.view(-1)  # Flatten to (beam_size * vocab_size)
-        top_k_scores, top_k_indices = torch.topk(scores_flat, beam_size, dim=-1)
+            # Get top-k scores and indices (for beam_size * vocab_size candidates)
+            topk_scores, topk_indices = next_scores.topk(beam_size, dim=-1)
 
-        # Step 6: Extract beam indices and token indices from top-k scores
-        beam_indices = torch.div(top_k_indices, prob.size(-1), rounding_mode='floor')  # Indices of previous beams
-        token_indices = torch.remainder(top_k_indices, prob.size(-1))  # Indices of new tokens
+            # Step 5: Extract beam indices and token indices from top-k scores
+            beam_indices = topk_indices // model.vocab_size
+            token_indices = topk_indices % model.vocab_size
 
-        # Step 7: Prepare the next decoder input
-        next_decoder_input = []
-        updated_scores = []
-        for beam_idx, token_idx, score in zip(beam_indices, token_indices, top_k_scores):
-            next_seq = torch.cat([sequences[beam_idx], token_idx.unsqueeze(0)], dim=0)
-            next_decoder_input.append(next_seq.unsqueeze(0))
-            updated_scores.append(score.unsqueeze(0))
+            # Step 6: Create new beam candidates
+            for k in range(beam_size):
+                token = token_indices[k].item()
+                new_ys = torch.cat([ys, torch.ones(1, 1).type_as(src.data).fill_(token)], dim=1)
+                new_scores = topk_scores[k].view(1, 1)
 
-        sequences = torch.cat(next_decoder_input, dim=0)  # Update sequences with new tokens
-        sequence_scores = torch.cat(updated_scores, dim=0)  # Update scores
+                # If the token is the end token, add this beam to finished_beams
+                if token == end_idx:
+                    finished_beams.append((new_ys, new_scores))
+                else:
+                    all_candidates.append((new_ys, new_scores))
 
-        # Step 8: Check if all beams have ended
-        if (sequences[:, -1] == end_idx).all():
+        # Step 7: Select top-k beams for the next step
+        beams = sorted(all_candidates, key=lambda x: x[1].item(), reverse=True)[:beam_size]
+
+        # Check if all beams have finished
+        if len(finished_beams) == beam_size:
             break
 
-    # Return the top-scored sequence
-    best_sequence_index = torch.argmax(sequence_scores)
-    best_sequence = sequences[best_sequence_index]
-
-    return best_sequence.tolist()
+    # Step 8: Return the top-scoring finished beam
+    if len(finished_beams) > 0:
+        top_beam = max(finished_beams, key=lambda x: x[1].item())
+        return top_beam[0].squeeze(0).tolist()
+    else:
+        top_beam = beams[0]
+        return top_beam[0].squeeze(0).tolist()
         
 
 

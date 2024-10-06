@@ -121,7 +121,7 @@ def beam_search_decode(model, src, src_mask, max_len, start_symbol, beam_size, e
 
         # Get the last output (the token scores for the current step)
         out = out[:, -1, :]  # (beam_size, vocab_size)
-        prob = F.log_softmax(out, dim=-1)  # Log probabilities for stability
+        prob = torch.nn.functional.log_softmax(out, dim=-1)  # Log probabilities for stability
 
         # If the first step, expand to beam_size (handle initial beam)
         if i == 0:

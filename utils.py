@@ -163,7 +163,7 @@ def beam_search_decode(model, src, src_mask, max_len, start_symbol, beam_size, e
     else:
         best_beam = ys[0]
 
-    return best_beam.tolist()
+    return [best_beam.tolist()]
         
 
 

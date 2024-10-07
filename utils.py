@@ -93,6 +93,7 @@ def beam_search_decode(model, src, src_mask, max_len, start_symbol, beam_size, e
     """
     Implement beam search decoding with 'beam_size' width.
     """
+    print(f'{beam_size}')
 
     # Step 1: Encode source input using the model encoder
     memory = model.encode(src, src_mask)
